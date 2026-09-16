@@ -1,0 +1,8 @@
+.build/
+build/
+.swiftpm/
+.DS_Store
+*.xcodeproj
+
+# Rendered from vector art by Scripts/make-icon.swift during bundling.
+Resources/AppIcon.icns
