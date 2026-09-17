@@ -59,7 +59,8 @@ struct ResultsView: View {
                                            systemImage: "antenna.radiowaves.left.and.right.slash")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    HSplitView {
+                    // HStack, not HSplitView: see the note in ProfilesView.
+                    HStack(spacing: 0) {
                         List(hosts, selection: $selectedHost) { host in
                             HostRow(host: host)
                                 .tag(host.address)
@@ -67,14 +68,21 @@ struct ResultsView: View {
                         }
                         .listStyle(.inset)
                         .copyable(selected.map { [$0.address] } ?? [])
-                        .frame(minWidth: 260, idealWidth: 320, maxWidth: 420)
+                        .frame(minWidth: 190, idealWidth: 260, maxWidth: 300)
+                        .frame(maxHeight: .infinity)
 
-                        if let host = selected {
-                            HostDetailView(host: host, runID: run.id, newTag: $newTag)
-                        } else {
-                            ContentUnavailableView(L10n.t("results.empty"), systemImage: "sidebar.right")
+                        Divider()
+
+                        Group {
+                            if let host = selected {
+                                HostDetailView(host: host, runID: run.id, newTag: $newTag)
+                            } else {
+                                ContentUnavailableView(L10n.t("results.empty"), systemImage: "sidebar.right")
+                            }
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }

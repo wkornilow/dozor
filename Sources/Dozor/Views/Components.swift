@@ -260,7 +260,9 @@ extension DateFormatter {
     static let runStamp: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
-        formatter.timeStyle = .medium
+        // Short time, not medium: seconds pushed the history column past its
+        // width and left every row ending in an ellipsis.
+        formatter.timeStyle = .short
         return formatter
     }()
 }

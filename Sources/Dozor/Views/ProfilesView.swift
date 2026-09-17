@@ -7,7 +7,12 @@ struct ProfilesView: View {
     @State private var draft: ScanProfile?
 
     var body: some View {
-        HSplitView {
+        // HStack rather than HSplitView: inside NavigationSplitView's detail
+        // column an HSplitView sizes itself to its children instead of to the
+        // space offered. Measured on a 960 pt window it took 922 x 139 pt of a
+        // 741 x 672 column, which squashed the list into a band and shoved the
+        // sidebar off the left edge.
+        HStack(spacing: 0) {
             List(selection: $selection) {
                 Section(L10n.t("profiles.builtIn")) {
                     ForEach(BuiltInProfiles.all) { profile in
@@ -26,7 +31,7 @@ struct ProfilesView: View {
                     }
                 }
             }
-            .frame(minWidth: 220, idealWidth: 260, maxWidth: 340)
+            .frame(width: 260)
             .safeAreaInset(edge: .bottom) {
                 HStack {
                     Button {
@@ -45,19 +50,23 @@ struct ProfilesView: View {
                 .background(.bar)
             }
 
-            if let profile = editingProfile {
-                ProfileEditor(profile: profile, isEditable: !profile.isBuiltIn) { saved in
-                    model.saveProfile(saved)
-                    draft = nil
-                    selection = saved.id
+            Divider()
+
+            Group {
+                if let profile = editingProfile {
+                    ProfileEditor(profile: profile, isEditable: !profile.isBuiltIn) { saved in
+                        model.saveProfile(saved)
+                        draft = nil
+                        selection = saved.id
+                    }
+                    .id(profile.id)
+                } else {
+                    ContentUnavailableView(L10n.t("profiles.custom"), systemImage: "slider.horizontal.3")
                 }
-                .id(profile.id)
-                .frame(minWidth: 420)
-            } else {
-                ContentUnavailableView(L10n.t("profiles.custom"), systemImage: "slider.horizontal.3")
-                    .frame(minWidth: 420)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(L10n.t("nav.profiles"))
     }
 

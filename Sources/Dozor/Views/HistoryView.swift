@@ -16,55 +16,70 @@ struct HistoryView: View {
         }
     }
 
+    private var selectedRun: ScanRun? {
+        model.history.first { $0.id == selection }
+    }
+
+    /// Full width now, so the author column earns its place again.
+    private var runTable: some View {
+        Table(runs, selection: $selection) {
+            TableColumn(L10n.t("history.started")) { run in
+                Text(DateFormatter.runStamp.string(from: run.startedAt))
+                    .appFont(.callout, monospacedDigit: true)
+            }
+            .width(150)
+            TableColumn(L10n.t("history.profile")) { run in
+                Text(run.profileName)
+            }
+            .width(min: 120, ideal: 180)
+            TableColumn(L10n.t("history.targets")) { run in
+                Text(run.targets.map(\.raw).joined(separator: ", "))
+                    .appFont(.callout, design: .monospaced)
+                    .lineLimit(1)
+            }
+            .width(min: 140, ideal: 240)
+            TableColumn(L10n.t("history.status")) { run in
+                StatusPill(status: run.status)
+            }
+            .width(90)
+            TableColumn(L10n.t("history.author")) { run in
+                Text(run.author).foregroundStyle(.secondary)
+            }
+            .width(min: 90, ideal: 120)
+        }
+        .contextMenu(forSelectionType: UUID.self) { ids in
+            Button(L10n.t("history.delete"), role: .destructive) {
+                for id in ids {
+                    if let run = model.history.first(where: { $0.id == id }) {
+                        model.delete(run: run)
+                    }
+                }
+            }
+        }
+    }
+
     var body: some View {
         Group {
             if model.history.isEmpty {
                 ContentUnavailableView(L10n.t("history.empty"), systemImage: "clock.arrow.circlepath")
             } else {
-                HSplitView {
+                // Table across the full width, the selected run underneath it.
+                // With nothing selected the table takes the whole pane rather
+                // than leaving an empty placeholder beside it.
+                GeometryReader { proxy in
                     VStack(spacing: 0) {
-                        Table(runs, selection: $selection) {
-                            TableColumn(L10n.t("history.started")) { run in
-                                Text(DateFormatter.runStamp.string(from: run.startedAt))
-                                    .appFont(.callout, monospacedDigit: true)
-                            }
-                            .width(150)
-                            TableColumn(L10n.t("history.profile")) { run in
-                                Text(run.profileName)
-                            }
-                            TableColumn(L10n.t("history.targets")) { run in
-                                Text(run.targets.map(\.raw).joined(separator: ", "))
-                                    .appFont(.callout, design: .monospaced)
-                                    .lineLimit(1)
-                            }
-                            TableColumn(L10n.t("history.status")) { run in
-                                StatusPill(status: run.status)
-                            }
-                            .width(100)
-                            TableColumn(L10n.t("history.author")) { run in
-                                Text(run.author).foregroundStyle(.secondary)
-                            }
-                            .width(110)
-                        }
-                        .contextMenu(forSelectionType: UUID.self) { ids in
-                            Button(L10n.t("history.delete"), role: .destructive) {
-                                for id in ids {
-                                    if let run = model.history.first(where: { $0.id == id }) {
-                                        model.delete(run: run)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .frame(minWidth: 460)
+                        runTable
+                            .frame(height: selectedRun == nil
+                                   ? proxy.size.height
+                                   : max(200, proxy.size.height * 0.42))
 
-                    if let run = model.history.first(where: { $0.id == selection }) {
-                        RunDetailView(run: run)
-                            .frame(minWidth: 380)
-                    } else {
-                        ContentUnavailableView(L10n.t("results.empty"), systemImage: "sidebar.right")
-                            .frame(minWidth: 380)
+                        if let run = selectedRun {
+                            Divider()
+                            RunDetailView(run: run)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                 }
             }
         }
