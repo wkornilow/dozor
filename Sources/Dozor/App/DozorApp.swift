@@ -58,6 +58,8 @@ struct ContentView: View {
         NavigationSplitView {
             List(selection: $model.route) {
                 Section(L10n.t("nav.section.work")) {
+                    Label(L10n.t("nav.network"), systemImage: "network")
+                        .tag(SidebarRoute.network)
                     Label(L10n.t("nav.scan"), systemImage: "dot.radiowaves.left.and.right")
                         .tag(SidebarRoute.scan)
                     Label(L10n.t("nav.history"), systemImage: "clock.arrow.circlepath")
@@ -76,6 +78,7 @@ struct ContentView: View {
             .safeAreaInset(edge: .bottom) { NmapStatusBar() }
         } detail: {
             switch model.route {
+            case .network: NetworkView()
             case .scan: ScanView()
             case .history: HistoryView()
             case .profiles: ProfilesView()

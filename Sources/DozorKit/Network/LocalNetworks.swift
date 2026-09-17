@@ -76,7 +76,13 @@ public enum LocalNetworks {
     /// Prefixes outside this range describe something that is not a scannable
     /// LAN: /31 and /32 are a point-to-point link or a single host, and nothing
     /// shorter than /8 is a real interface mask.
-    static let acceptedPrefixes = 8...30
+    public static let acceptedPrefixes = 8...30
+
+    /// Host order value of a dotted quad, for arithmetic on ranges.
+    public static func hostValue(_ address: String) -> UInt32? {
+        guard let parsed = TargetValidator.parseIPv4(address) else { return nil }
+        return UInt32(bigEndian: parsed.s_addr)
+    }
 
     // MARK: - Suggestions
 
@@ -140,7 +146,7 @@ public enum LocalNetworks {
     }
 
     /// The CIDR an interface contributes, or nil when it is not worth offering.
-    static func network(for interface: InterfaceAddress) -> (cidr: String, actualPrefix: Int, isNarrowed: Bool)? {
+    public static func network(for interface: InterfaceAddress) -> (cidr: String, actualPrefix: Int, isNarrowed: Bool)? {
         guard interface.isUp, interface.isRunning else { return nil }
         guard !interface.isLoopback, !interface.isPointToPoint else { return nil }
         guard TargetValidator.parseIPv4(interface.address) != nil else { return nil }
@@ -176,7 +182,7 @@ public enum LocalNetworks {
     }
 
     /// Whether a plain IPv4 address falls inside a CIDR network.
-    static func contains(cidr: String, address: String) -> Bool {
+    public static func contains(cidr: String, address: String) -> Bool {
         let parts = cidr.components(separatedBy: "/")
         guard parts.count == 2, let prefix = Int(parts[1]),
               let base = networkAddress(parts[0], prefix: prefix),
@@ -185,11 +191,11 @@ public enum LocalNetworks {
         return base == candidate
     }
 
-    static func maskValue(prefix: Int) -> UInt32 {
+    public static func maskValue(prefix: Int) -> UInt32 {
         prefix == 0 ? 0 : ~UInt32(0) << (32 - prefix)
     }
 
-    static func dotted(_ host: UInt32) -> String {
+    public static func dotted(_ host: UInt32) -> String {
         "\((host >> 24) & 0xff).\((host >> 16) & 0xff).\((host >> 8) & 0xff).\(host & 0xff)"
     }
 

@@ -81,6 +81,11 @@ struct ScanView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .task { model.networks.startMonitoring() }
+        .onChange(of: model.pendingNetworkTargets) { _, handed in
+            guard let handed else { return }
+            targetText = handed
+            model.pendingNetworkTargets = nil
+        }
         .onDisappear { model.networks.stopMonitoring() }
         .safeAreaInset(edge: .bottom) { startBar }
         .navigationTitle(L10n.t("nav.scan"))

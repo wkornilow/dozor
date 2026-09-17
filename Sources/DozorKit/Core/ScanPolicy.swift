@@ -28,6 +28,18 @@ public struct ScanPolicy: Codable, Hashable, Sendable {
     public var maxAddressesPerRun: Int
     /// Only one scan may run at a time, regardless of anything else.
     public var serialiseScans: Bool
+
+    /// Packets per second for the network overview's own sweep. Far below
+    /// `maxPacketRate` on purpose: that cap governs something the user starts
+    /// deliberately, this one governs something that repeats on a timer.
+    public var sweepPacketRate: Int
+    /// Floor between two sweeps. The policy engine has no notion of duty cycle —
+    /// a passive /24 passes its checks identically on the first sweep and the
+    /// thousandth — so the limit lives here.
+    public var sweepMinimumInterval: Int
+    /// Automatic refreshing stops itself after this long. A scanner quietly
+    /// sweeping a network forever is the thing this app exists to prevent.
+    public var sweepAutoRefreshMaxMinutes: Int
     /// Bumped when the shipped defaults change in a way that must override a
     /// stored policy; see `migratedIfNeeded()`.
     public var schemaVersion: Int
@@ -44,6 +56,9 @@ public struct ScanPolicy: Codable, Hashable, Sendable {
         maxHostGroup: 64,
         maxAddressesPerRun: 4096,
         serialiseScans: true,
+        sweepPacketRate: 200,
+        sweepMinimumInterval: 15,
+        sweepAutoRefreshMaxMinutes: 30,
         schemaVersion: currentSchemaVersion
     )
 
@@ -64,6 +79,9 @@ public struct ScanPolicy: Codable, Hashable, Sendable {
                 maxIntensityWithoutConfirmation: ScanIntensity, blockedIntensity: ScanIntensity?,
                 maxPacketRate: Int, maxParallelism: Int, maxHostGroup: Int,
                 maxAddressesPerRun: Int, serialiseScans: Bool,
+                sweepPacketRate: Int = 200,
+                sweepMinimumInterval: Int = 15,
+                sweepAutoRefreshMaxMinutes: Int = 30,
                 schemaVersion: Int = 1) {
         self.authorisedAssets = authorisedAssets
         self.blockUnauthorisedTargets = blockUnauthorisedTargets
@@ -74,6 +92,9 @@ public struct ScanPolicy: Codable, Hashable, Sendable {
         self.maxHostGroup = maxHostGroup
         self.maxAddressesPerRun = maxAddressesPerRun
         self.serialiseScans = serialiseScans
+        self.sweepPacketRate = sweepPacketRate
+        self.sweepMinimumInterval = sweepMinimumInterval
+        self.sweepAutoRefreshMaxMinutes = sweepAutoRefreshMaxMinutes
         self.schemaVersion = schemaVersion
     }
 
@@ -94,6 +115,17 @@ public struct ScanPolicy: Codable, Hashable, Sendable {
             ?? ScanPolicy.default.maxHostGroup
         maxAddressesPerRun = try container.decodeIfPresent(Int.self, forKey: .maxAddressesPerRun) ?? 4096
         serialiseScans = try container.decodeIfPresent(Bool.self, forKey: .serialiseScans) ?? true
+        // Added after schema 2. Deliberately NOT accompanied by a version bump:
+        // `migratedIfNeeded()` resets the throughput caps whenever the stored
+        // version is older, so bumping it to introduce unrelated fields would
+        // silently undo a rate limit the user had lowered on purpose.
+        sweepPacketRate = try container.decodeIfPresent(Int.self, forKey: .sweepPacketRate)
+            ?? ScanPolicy.default.sweepPacketRate
+        sweepMinimumInterval = try container.decodeIfPresent(Int.self, forKey: .sweepMinimumInterval)
+            ?? ScanPolicy.default.sweepMinimumInterval
+        sweepAutoRefreshMaxMinutes = try container.decodeIfPresent(
+            Int.self, forKey: .sweepAutoRefreshMaxMinutes)
+            ?? ScanPolicy.default.sweepAutoRefreshMaxMinutes
         schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
     }
 }
@@ -133,9 +165,28 @@ public enum PolicyEngine {
         policy: ScanPolicy,
         isRoot: Bool
     ) -> PolicyVerdict {
+        evaluate(targets: targets, intensity: profile.intensity,
+                 requiresRoot: profile.requiresRoot, subject: profile.name,
+                 policy: policy, isRoot: isRoot)
+    }
+
+    /// The core check. Takes the two things it actually uses rather than a whole
+    /// profile, so the network overview — which has no profile — can be judged by
+    /// the same rules instead of being handed a fabricated one.
+    public static func evaluate(
+        targets: [ScanTarget],
+        intensity: ScanIntensity,
+        requiresRoot: Bool,
+        subject: String,
+        policy: ScanPolicy,
+        isRoot: Bool,
+        addressCountOverride: Int? = nil
+    ) -> PolicyVerdict {
         var findings: [PolicyFinding] = []
 
-        let total = targets.reduce(0) { $0 + ($1.addressCount ?? 1) }
+        // A sweep passes the number it actually probes — a /24 is 256 addresses
+        // but only 253 of them are hosts it will touch.
+        let total = addressCountOverride ?? targets.reduce(0) { $0 + ($1.addressCount ?? 1) }
         if total > policy.maxAddressesPerRun {
             findings.append(.init(kind: .scopeOverLimit,
                                   detail: "\(total) > \(policy.maxAddressesPerRun)",
@@ -153,16 +204,16 @@ public enum PolicyEngine {
             }
         }
 
-        if let blocked = policy.blockedIntensity, profile.intensity.order >= blocked.order {
-            findings.append(.init(kind: .highIntensity, detail: profile.intensity.rawValue,
+        if let blocked = policy.blockedIntensity, intensity.order >= blocked.order {
+            findings.append(.init(kind: .highIntensity, detail: intensity.rawValue,
                                   isBlocking: true))
-        } else if profile.intensity.order > policy.maxIntensityWithoutConfirmation.order {
-            findings.append(.init(kind: .highIntensity, detail: profile.intensity.rawValue,
+        } else if intensity.order > policy.maxIntensityWithoutConfirmation.order {
+            findings.append(.init(kind: .highIntensity, detail: intensity.rawValue,
                                   isBlocking: false))
         }
 
-        if profile.requiresRoot && !isRoot {
-            findings.append(.init(kind: .rootRequired, detail: profile.name, isBlocking: true))
+        if requiresRoot && !isRoot {
+            findings.append(.init(kind: .rootRequired, detail: subject, isBlocking: true))
         }
 
         if findings.contains(where: \.isBlocking) {

@@ -13,6 +13,7 @@ struct AppSettings: Codable, Sendable {
 }
 
 enum SidebarRoute: Hashable {
+    case network
     case scan
     case history
     case profiles
@@ -53,6 +54,13 @@ final class AppModel {
     private(set) var logLines: [String] = []
     var isScanning: Bool { activeRun?.status == .running }
 
+    /// The LAN overview's state. Owned here rather than by the view so
+    /// switching sidebar routes does not tear down the sweep history.
+    let network = NetworkModeModel()
+
+    /// Targets handed over from the network overview, picked up by the scan form.
+    var pendingNetworkTargets: String?
+
     /// Networks this Mac is attached to, offered as one-click scan ranges.
     /// Owned here rather than by the view so switching sidebar routes does not
     /// tear down and restart the path monitor.
@@ -88,6 +96,7 @@ final class AppModel {
         locateNmap()
         AuditLog.shared.record(.appStarted, "version \(installation?.version ?? "nmap not found")")
         ZoomShortcut.install { [weak self] in self?.zoomTextIn() }
+        network.attach(to: self)
     }
 
     // MARK: - Text size

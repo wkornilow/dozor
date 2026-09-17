@@ -17,6 +17,10 @@ public struct AuditEntry: Codable, Hashable, Sendable, Identifiable {
         case profileDeleted
         case policyChanged
         case scheduleChanged
+        case sweepStarted
+        case sweepFinished
+        case sweepBlocked
+        case wakeOnLanSent
     }
 
     public var id: UUID

@@ -18,6 +18,14 @@ public enum AppPaths {
     public static var settingsFile: URL { container.appendingPathComponent("settings.json") }
     public static var scheduleFile: URL { container.appendingPathComponent("schedules.json") }
     public static var auditLog: URL { container.appendingPathComponent("audit.jsonl") }
+    public static var networkDirectory: URL { container.appendingPathComponent("network", isDirectory: true) }
+
+    /// One file per subnet, so the overview's "was here" survives a relaunch
+    /// without polluting the scan history.
+    public static func networkInventoryFile(scopeCIDR: String) -> URL {
+        let safe = scopeCIDR.replacingOccurrences(of: "/", with: "_")
+        return networkDirectory.appendingPathComponent("\(safe).json")
+    }
     public static var scratchDirectory: URL { container.appendingPathComponent("scratch", isDirectory: true) }
 
     /// Everything lived under "NmapMac" before the app was named. Move it once,
@@ -36,7 +44,7 @@ public enum AppPaths {
     @discardableResult
     public static func ensureContainers() throws -> URL {
         migrateLegacyContainerIfNeeded()
-        for directory in [container, runsDirectory, scratchDirectory] {
+        for directory in [container, runsDirectory, scratchDirectory, networkDirectory] {
             try FileManager.default.createDirectory(
                 at: directory,
                 withIntermediateDirectories: true,

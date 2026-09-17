@@ -172,7 +172,8 @@ func runHostEnrichmentTests() {
 }
 
 /// The harness is synchronous; this runs one async call to completion.
-private func runBlocking<T: Sendable>(_ body: @escaping @Sendable () async -> T) -> T {
+/// Shared with the sweep suite.
+func runBlocking<T: Sendable>(_ body: @escaping @Sendable () async -> T) -> T {
     let semaphore = DispatchSemaphore(value: 0)
     nonisolated(unsafe) var outcome: T?
     Task {
