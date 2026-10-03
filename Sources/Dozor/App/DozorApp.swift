@@ -77,14 +77,18 @@ struct ContentView: View {
             .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 280)
             .safeAreaInset(edge: .bottom) { NmapStatusBar() }
         } detail: {
-            switch model.route {
-            case .network: NetworkView()
-            case .scan: ScanView()
-            case .history: HistoryView()
-            case .profiles: ProfilesView()
-            case .audit: AuditView()
-            case .settings: SettingsView()
+            // See PaneFrame: no route can resize the window from in here.
+            PaneFrame {
+                switch model.route {
+                case .network: NetworkView()
+                case .scan: ScanView()
+                case .history: HistoryView()
+                case .profiles: ProfilesView()
+                case .audit: AuditView()
+                case .settings: SettingsView()
+                }
             }
+            .clipped()
         }
         .alert(L10n.t("error.title"),
                isPresented: Binding(get: { model.alertMessage != nil },

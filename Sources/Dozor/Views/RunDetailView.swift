@@ -90,7 +90,8 @@ struct RunDetailView: View {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .appFont(.caption)
                     .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(4)
+                    .help(message)
             }
         }
         .padding(.horizontal, 20)

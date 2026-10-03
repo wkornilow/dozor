@@ -54,6 +54,7 @@ struct NetworkView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .searchable(text: $search)
         .navigationTitle(L10n.t("nav.network"))
         .task { network.start() }
         .onDisappear { network.stop() }
@@ -72,7 +73,7 @@ struct NetworkView: View {
                     }
                 }
                 .labelsHidden()
-                .frame(maxWidth: 260)
+                .frame(minWidth: 160, maxWidth: 260)
 
                 Button {
                     network.refresh()
@@ -98,15 +99,12 @@ struct NetworkView: View {
                 Toggle(L10n.t("network.probePorts"), isOn: $network.probePorts)
                     .toggleStyle(.checkbox)
 
-                Spacer()
-
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField(L10n.t("results.search"), text: $search)
-                        .textFieldStyle(.plain)
-                        .frame(width: 180)
-                }
+                Spacer(minLength: 0)
             }
+            // Controls never wrap: squeezed at the minimum window width, the
+            // checkbox label broke onto three lines and pushed the table down.
+            // The search field lives in the toolbar so the row fits there.
+            .lineLimit(1)
 
             HStack(spacing: 14) {
                 if case .sweeping(let probed, let total) = network.phase {
@@ -131,7 +129,8 @@ struct NetworkView: View {
                 Label(reason, systemImage: "hand.raised.fill")
                     .appFont(.caption)
                     .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(4)
+                    .help(reason)
             }
             ForEach(network.advisories) { finding in
                 Label(L10n.t("policy.finding.\(finding.kind.rawValue)", finding.detail),
@@ -143,9 +142,13 @@ struct NetworkView: View {
                 Label(L10n.t("network.warning.\(warning.rawValue)"), systemImage: "info.circle")
                     .appFont(.caption)
                     .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(3)
             }
         }
+        // No fixedSize on these labels: the split view measures its columns
+        // with a near-zero width, and text pinned to its ideal height at that
+        // width wraps one word per line — a header thousands of points tall
+        // that the window then centres, shoving both columns off the top.
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
     }

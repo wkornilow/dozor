@@ -266,3 +266,28 @@ extension DateFormatter {
         return formatter
     }()
 }
+
+/// Fills exactly the space it is offered and never lets its content's own size
+/// leak back up to the split view.
+///
+/// NavigationSplitView sizes the window from what each column reports, and it
+/// asks with extreme proposals — near-zero widths, unbounded heights. One view
+/// that answers those literally (wrapping text pinned with `fixedSize`, an
+/// HSplitView, a row of fixed-width controls) used to grow the whole split past
+/// the window, which then centred it: both columns slid off the top and bottom,
+/// taking the toolbar-adjacent controls with them. Every detail route is
+/// wrapped in this, so a route can misbehave only inside its own pane.
+struct PaneFrame: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        // Unspecified dimensions get a neutral answer instead of the child's
+        // ideal, which is exactly the number that must not reach the window.
+        proposal.replacingUnspecifiedDimensions(by: .zero)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize,
+                       subviews: Subviews, cache: inout ()) {
+        for view in subviews {
+            view.place(at: bounds.origin, anchor: .topLeading, proposal: ProposedViewSize(bounds.size))
+        }
+    }
+}
