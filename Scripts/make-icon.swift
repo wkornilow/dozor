@@ -9,13 +9,13 @@ import AppKit
 
 // MARK: - Art
 
-/// Host discovery, drawn literally: this Mac at the centre, concentric sweeps
-/// reaching outward, and the hosts they find sitting on them — one already
-/// answering, in green.
+/// A local network, reduced to its bones: the router on top, one shared line,
+/// and the devices hanging off it — the one Dozor has just found, in green.
+/// Few shapes and thick strokes, so it still reads at 16 px.
 struct IconArt: View {
     let side: CGFloat
-    /// Below 128 px the rings and thin links turn to mush, so small sizes get a
-    /// deliberately coarser drawing rather than a blurred version of this one.
+    /// Below 128 px thin strokes turn to mush, so small sizes get heavier lines
+    /// rather than a blurred version of the large drawing.
     var simplified: Bool = false
 
     /// Apple's icon grid: the plate is 824 pt inside a 1024 pt canvas.
@@ -25,28 +25,17 @@ struct IconArt: View {
         RoundedRectangle(cornerRadius: corner, style: .continuous)
     }
 
-    /// Angle in degrees (0 = right) and the ring the host sits on.
-    private var nodes: [(angle: Double, ring: Int, found: Bool)] {
-        simplified
-            ? [(325, 1, true)]
-            : [(205, 0, false), (20, 0, false), (150, 1, false), (255, 1, false), (325, 1, true)]
-    }
-
-    private var ringRadii: [CGFloat] {
-        simplified ? [0.30] : [0.175, 0.30, 0.415]
-    }
-
     var body: some View {
         ZStack {
             shape
                 .fill(LinearGradient(
-                    colors: [Color(red: 0.11, green: 0.16, blue: 0.38),
-                             Color(red: 0.13, green: 0.44, blue: 0.87)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing))
+                    colors: [Color(red: 0.10, green: 0.14, blue: 0.30),
+                             Color(red: 0.12, green: 0.36, blue: 0.78)],
+                    startPoint: .top, endPoint: .bottom))
                 .overlay {
                     // A little light along the top edge, so the plate reads as a
                     // surface rather than a flat swatch.
-                    shape.fill(LinearGradient(colors: [.white.opacity(0.18), .clear],
+                    shape.fill(LinearGradient(colors: [.white.opacity(0.14), .clear],
                                               startPoint: .top, endPoint: .center))
                 }
                 .overlay { artwork }
@@ -59,52 +48,41 @@ struct IconArt: View {
 
     private var artwork: some View {
         Canvas { context, size in
-            let centre = CGPoint(x: size.width / 2, y: size.height / 2)
+            let w = size.width
+            let line = w * (simplified ? 0.075 : 0.05)
+            let stroke = StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round)
+            let white = Color.white
+            let green = Color(red: 0.19, green: 0.84, blue: 0.40)
 
-            for (index, radius) in ringRadii.enumerated() {
-                let diameter = size.width * radius * 2
-                let box = CGRect(x: centre.x - diameter / 2, y: centre.y - diameter / 2,
-                                 width: diameter, height: diameter)
-                context.stroke(
-                    Path(ellipseIn: box),
-                    with: .color(.white.opacity(simplified ? 0.34 : 0.30 - Double(index) * 0.06)),
-                    lineWidth: size.width * (simplified ? 0.045 : 0.020)
-                )
-            }
+            // Router: a rounded box at the top centre.
+            let routerSize = CGSize(width: w * 0.30, height: w * 0.19)
+            let router = CGRect(x: (w - routerSize.width) / 2, y: w * 0.17,
+                                width: routerSize.width, height: routerSize.height)
+            context.fill(Path(roundedRect: router, cornerRadius: w * 0.045), with: .color(white))
 
-            for node in nodes {
-                var link = Path()
-                link.move(to: centre)
-                link.addLine(to: point(for: node, centre: centre, size: size))
-                context.stroke(link, with: .color(.white.opacity(0.40)),
-                               lineWidth: size.width * 0.013)
-            }
+            // Device positions along the bottom.
+            let busY = w * 0.56
+            let deviceY = w * 0.74
+            let xs = [w * 0.24, w * 0.50, w * 0.76]
 
-            for node in nodes {
-                let position = point(for: node, centre: centre, size: size)
-                let radius = size.width * (simplified ? 0.065 : 0.045)
-                let box = CGRect(x: position.x - radius, y: position.y - radius,
+            var wires = Path()
+            wires.move(to: CGPoint(x: w / 2, y: router.maxY))
+            wires.addLine(to: CGPoint(x: w / 2, y: busY))
+            wires.move(to: CGPoint(x: xs[0], y: deviceY))
+            wires.addLine(to: CGPoint(x: xs[0], y: busY))
+            wires.addLine(to: CGPoint(x: xs[2], y: busY))
+            wires.addLine(to: CGPoint(x: xs[2], y: deviceY))
+            wires.move(to: CGPoint(x: xs[1], y: busY))
+            wires.addLine(to: CGPoint(x: xs[1], y: deviceY))
+            context.stroke(wires, with: .color(white.opacity(0.85)), style: stroke)
+
+            let radius = w * (simplified ? 0.085 : 0.075)
+            for (index, x) in xs.enumerated() {
+                let box = CGRect(x: x - radius, y: deviceY - radius,
                                  width: radius * 2, height: radius * 2)
-                let colour: Color = node.found
-                    ? Color(red: 0.19, green: 0.82, blue: 0.35)
-                    : .white
-                context.fill(Path(ellipseIn: box), with: .color(colour))
+                context.fill(Path(ellipseIn: box), with: .color(index == 2 ? green : white))
             }
-
-            // This Mac, at the centre of its own sweep.
-            let hub = size.width * (simplified ? 0.085 : 0.058)
-            context.fill(Path(ellipseIn: CGRect(x: centre.x - hub, y: centre.y - hub,
-                                                width: hub * 2, height: hub * 2)),
-                         with: .color(.white))
         }
-    }
-
-    private func point(for node: (angle: Double, ring: Int, found: Bool),
-                       centre: CGPoint, size: CGSize) -> CGPoint {
-        let radius = size.width * ringRadii[min(node.ring, ringRadii.count - 1)]
-        let radians = node.angle * .pi / 180
-        return CGPoint(x: centre.x + cos(radians) * radius,
-                       y: centre.y + sin(radians) * radius)
     }
 }
 
