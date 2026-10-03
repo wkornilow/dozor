@@ -309,6 +309,27 @@ func runSweepTests() {
             expectEqual(summary.packetsSent, 0, "nothing actually left the machine")
         }
 
+        test("every probe refused with EPERM reads as denied access, not a quiet subnet") {
+            // The bug this guards: before this, a permission denial looked
+            // identical to "nobody answered" — a sweep that silently returns
+            // zero hosts forever, with nothing telling the person why.
+            let scope = try require(SweepScope.resolve(cidr: "192.168.40.0/24", interfaces: [wifi]))
+            let transport = RecordingTransport(before: [:], after: [:])
+            transport.failEveryProbeWith = .permissionDenied
+            let outcome = runBlocking {
+                await collect(SubnetSweeper(transport: transport, vendors: nil,
+                                            options: quietOptions()).run(scope: scope))
+            }
+            let summary = try require(outcome.summary)
+            expectEqual(summary.warnings, [.localNetworkAccessDenied],
+                       "reported instead of an empty table with no explanation")
+        }
+
+        test("EPERM and EACCES both classify as a permission denial") {
+            expectEqual(DarwinDiscoveryTransport.classify(EPERM), .permissionDenied)
+            expectEqual(DarwinDiscoveryTransport.classify(EACCES), .permissionDenied)
+        }
+
         test("one MAC answering for the whole subnet is called out as proxy ARP") {
             let observations = (1...12).map { index in
                 SweepObservation(address: "10.0.0.\(index)", mac: "aa:aa:aa:aa:aa:aa",

@@ -8,6 +8,12 @@ public enum DiscoveryTransportError: Error, Equatable, Sendable {
     case outOfBuffers
     /// Per-address, not fatal.
     case unreachable
+    /// The OS refused the socket the local-network access sweep needs — either
+    /// the person denied the "Local Network" prompt, or `Info.plist` is missing
+    /// `NSLocalNetworkUsageDescription` so the prompt never had a chance to ask.
+    /// Every subsequent probe in the sweep fails the same way, so this is worth
+    /// telling apart from an ordinary unreachable host.
+    case permissionDenied
     case other(Int32)
 }
 
@@ -62,7 +68,7 @@ public final class DarwinDiscoveryTransport: DiscoveryTransport, @unchecked Send
     private func socketDescriptor(interfaceIndex: UInt32) throws -> Int32 {
         if descriptor >= 0 { return descriptor }
         let created = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP)
-        guard created >= 0 else { throw DiscoveryTransportError.other(errno) }
+        guard created >= 0 else { throw Self.classify(errno) }
 
         // FIONBIO is not importable from Swift; set the flag on the descriptor.
         let flags = fcntl(created, F_GETFL, 0)
@@ -159,10 +165,11 @@ public final class DarwinDiscoveryTransport: DiscoveryTransport, @unchecked Send
         return ~UInt16(sum & 0xFFFF)
     }
 
-    static func classify(_ code: Int32) -> DiscoveryTransportError {
+    public static func classify(_ code: Int32) -> DiscoveryTransportError {
         switch code {
         case ENOBUFS: return .outOfBuffers
         case EHOSTDOWN, EHOSTUNREACH, ENETDOWN, ENETUNREACH: return .unreachable
+        case EPERM, EACCES: return .permissionDenied
         default: return .other(code)
         }
     }

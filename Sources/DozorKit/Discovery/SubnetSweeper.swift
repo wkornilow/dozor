@@ -60,6 +60,10 @@ public enum SweepWarning: String, Hashable, Sendable, Codable {
     case proxyArpSuspected
     /// The kernel refused work and the rate was halved.
     case rateBackedOff
+    /// Every probe was refused with EPERM/EACCES — the OS denied (or never
+    /// asked for) Local Network access, so this sweep found nothing by
+    /// construction, not because the subnet is actually empty.
+    case localNetworkAccessDenied
 }
 
 public enum SweepError: Error, Equatable, Sendable {
@@ -149,6 +153,7 @@ public actor SubnetSweeper {
 
         var packetsSent = 0
         var backedOff = false
+        var permissionDenials = 0
         var answered = Set<String>()
         let clockStart = ContinuousClock.now
 
@@ -169,6 +174,8 @@ public actor SubnetSweeper {
             } catch DiscoveryTransportError.outOfBuffers {
                 pacing = pacing.backedOff()
                 backedOff = true
+            } catch DiscoveryTransportError.permissionDenied {
+                permissionDenials += 1
             } catch {
                 // Per-address failures are negative evidence, not sweep failures.
             }
@@ -237,7 +244,8 @@ public actor SubnetSweeper {
             backedOff: backedOff,
             warnings: Self.warnings(observations: observations, probed: addresses.count,
                                     gateway: gateway, backedOff: backedOff,
-                                    proxyArpThreshold: options.proxyArpThreshold)
+                                    proxyArpThreshold: options.proxyArpThreshold,
+                                    permissionDenials: permissionDenials)
         )))
     }
 
@@ -245,9 +253,15 @@ public actor SubnetSweeper {
     /// table as if it were the truth.
     public static func warnings(observations: [SweepObservation], probed: Int,
                          gateway: String?, backedOff: Bool,
-                         proxyArpThreshold: Int) -> [SweepWarning] {
+                         proxyArpThreshold: Int, permissionDenials: Int = 0) -> [SweepWarning] {
         var warnings: [SweepWarning] = []
         if backedOff { warnings.append(.rateBackedOff) }
+        // Every single probe was refused the same way: this is not a quiet
+        // subnet, it is the OS blocking the socket outright. Reported alone,
+        // ahead of the others, since it explains why nothing else fired either.
+        if probed > 0, permissionDenials >= probed {
+            return [.localNetworkAccessDenied]
+        }
 
         let present = observations.filter { $0.presence.level == .present }
         if probed > 64, present.count == 1, let gateway, present[0].address == gateway {

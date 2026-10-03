@@ -41,6 +41,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSHumanReadableCopyright</key><string>Local network scanning front-end for Nmap.</string>
+    <key>NSLocalNetworkUsageDescription</key><string>Dozor probes addresses on this Mac's own subnet to show which devices answer and reads the ARP table to learn their hardware addresses. Nothing outside the local network is contacted.</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>NSSupportsAutomaticTermination</key><false/>
     <key>NSSupportsSuddenTermination</key><false/>
