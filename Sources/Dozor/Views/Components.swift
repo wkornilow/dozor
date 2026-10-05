@@ -36,11 +36,11 @@ struct MetricLabel: View {
     }
 }
 
-struct IntensityBadge: View {
-    let intensity: ScanIntensity
-
-    private var color: Color {
-        switch intensity {
+extension ScanIntensity {
+    /// Shared by every place that shows a profile's weight, so a colour means
+    /// the same thing on the Scan and Profiles screens.
+    var tint: Color {
+        switch self {
         case .passive: return .green
         case .light: return .mint
         case .moderate: return .blue
@@ -49,27 +49,31 @@ struct IntensityBadge: View {
         }
     }
 
-    var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .appFont(.title2)
-            Text(L10n.intensityName(intensity))
-                .appFont(.caption, weight: .medium)
-        }
-        .foregroundStyle(color)
-        .frame(width: 84)
-        .padding(.vertical, 8)
-        .background(color.opacity(0.12), in: .rect(cornerRadius: 8))
-    }
-
-    private var icon: String {
-        switch intensity {
+    var symbol: String {
+        switch self {
         case .passive: return "leaf"
         case .light: return "wind"
         case .moderate: return "gauge.medium"
         case .heavy: return "gauge.high"
         case .aggressive: return "exclamationmark.triangle"
         }
+    }
+}
+
+struct IntensityBadge: View {
+    let intensity: ScanIntensity
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: intensity.symbol)
+                .appFont(.title2)
+            Text(L10n.intensityName(intensity))
+                .appFont(.caption, weight: .medium)
+        }
+        .foregroundStyle(intensity.tint)
+        .frame(width: 84)
+        .padding(.vertical, 8)
+        .background(intensity.tint.opacity(0.12), in: .rect(cornerRadius: 8))
     }
 }
 
