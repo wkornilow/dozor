@@ -4,11 +4,13 @@ import DozorKit
 @main
 struct DozorApp: App {
 
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = AppModel()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: AppDelegate.mainWindowID) {
             ContentView()
+                .background(MainWindowReopener(appDelegate: appDelegate))
                 .environment(model)
                 .environment(\.textScale, model.textScale)
                 .frame(minWidth: 960, minHeight: 620)
@@ -46,6 +48,39 @@ struct DozorApp: App {
                 .environment(model)
                 .environment(\.textScale, model.textScale)
                 .frame(width: 560, height: 520)
+        }
+    }
+}
+
+/// Replacing the `.newItem` command group (⌘N goes to Scan) also removes the
+/// path SwiftUI uses to rebuild a closed `WindowGroup` window, so clicking the
+/// Dock icon after closing the window did nothing. The delegate reopens it.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    static let mainWindowID = "main"
+
+    var openMainWindow: (() -> Void)?
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // A minimized window is AppKit's to restore; only a closed one needs rebuilding.
+        guard !flag, !sender.windows.contains(where: \.isMiniaturized), let openMainWindow else {
+            return true
+        }
+        openMainWindow()
+        return false
+    }
+}
+
+/// Hands the scene's `openWindow` action to the app delegate, which has no
+/// SwiftUI environment of its own.
+private struct MainWindowReopener: View {
+    let appDelegate: AppDelegate
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Color.clear.onAppear {
+            appDelegate.openMainWindow = { [openWindow] in
+                openWindow(id: AppDelegate.mainWindowID)
+            }
         }
     }
 }
