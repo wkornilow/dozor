@@ -25,6 +25,21 @@ public struct NetworkHostRow: Codable, Hashable, Sendable, Identifiable {
     /// Set when a different MAC started answering for this address.
     public var macChangedAt: Date?
 
+    public init(host: HostResult, firstSeen: Date, lastSeen: Date, lastProbed: Date,
+                presence: HostPresence, missedSweeps: Int, isGateway: Bool, isSelf: Bool,
+                capabilities: HostCapabilities, macChangedAt: Date? = nil) {
+        self.host = host
+        self.firstSeen = firstSeen
+        self.lastSeen = lastSeen
+        self.lastProbed = lastProbed
+        self.presence = presence
+        self.missedSweeps = missedSweeps
+        self.isGateway = isGateway
+        self.isSelf = isSelf
+        self.capabilities = capabilities
+        self.macChangedAt = macChangedAt
+    }
+
     public func status(missThreshold: Int = 3) -> RowStatus {
         if missedSweeps == 0 { return .up }
         return missedSweeps <= missThreshold ? .recentlyUp : .gone

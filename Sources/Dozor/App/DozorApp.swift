@@ -11,6 +11,7 @@ struct DozorApp: App {
         WindowGroup(id: AppDelegate.mainWindowID) {
             ContentView()
                 .background(MainWindowReopener(appDelegate: appDelegate))
+                .task { await ScreenshotCapture.runIfRequested(model) }
                 .environment(model)
                 .environment(\.textScale, model.textScale)
                 .frame(minWidth: 960, minHeight: 620)

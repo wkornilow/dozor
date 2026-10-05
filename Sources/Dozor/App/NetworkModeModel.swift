@@ -58,6 +58,13 @@ final class NetworkModeModel {
     // MARK: - Lifecycle
 
     func start() {
+        if DemoMode.isActive {
+            scopes = [DemoMode.scope]
+            selectedScopeID = DemoMode.scope.id
+            rows = DemoMode.rows
+            lastSummary = DemoMode.summary
+            return
+        }
         refreshScopes()
         guard monitor == nil else { return }
         let monitor = NWPathMonitor()
@@ -99,7 +106,8 @@ final class NetworkModeModel {
     // MARK: - Sweeping
 
     func refresh(manual: Bool = true) {
-        guard sweepTask == nil else { return }
+        // The demo network is invented; probing its addresses would hit real ones.
+        guard !DemoMode.isActive, sweepTask == nil else { return }
         guard let app, let scope = selectedScope else { return }
 
         if app.policy.serialiseScans, app.isScanning {
@@ -300,7 +308,7 @@ final class NetworkModeModel {
     }
 
     func wake(_ row: NetworkHostRow) {
-        guard let mac = row.host.mac, let scope = selectedScope else { return }
+        guard !DemoMode.isActive, let mac = row.host.mac, let scope = selectedScope else { return }
         let sent = WakeOnLan.send(to: mac, broadcast: scope.broadcastAddress,
                                   interfaceIndex: scope.interfaceIndex)
         AuditLog.shared.record(.wakeOnLanSent,

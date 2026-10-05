@@ -59,7 +59,7 @@ final class NetworkSuggestionsModel {
     }
 
     func refresh() {
-        let updated = LocalNetworks.currentSuggestions()
+        let updated = DemoMode.isActive ? DemoMode.suggestions : LocalNetworks.currentSuggestions()
         hasProbed = true
         // Assign only on a real change: a burst of path callbacks would
         // otherwise rebuild the chip row several times over.

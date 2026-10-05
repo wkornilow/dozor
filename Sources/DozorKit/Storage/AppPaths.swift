@@ -7,7 +7,15 @@ public enum AppPaths {
 
     public static let bundleIdentifier = "dev.dozor.app"
 
+    /// Set by `DOZOR_DEMO=1`. Demo mode shows invented data and must never read
+    /// or write the real history, profiles, policy or audit trail.
+    public static let isDemo = ProcessInfo.processInfo.environment["DOZOR_DEMO"] == "1"
+
     public static var container: URL {
+        if isDemo {
+            return FileManager.default.temporaryDirectory
+                .appendingPathComponent("DozorDemo", isDirectory: true)
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("Dozor", isDirectory: true)
     }
@@ -32,6 +40,7 @@ public enum AppPaths {
     /// so an existing scan history, profile set and audit trail survive the
     /// rename instead of being silently orphaned next to the new directory.
     static func migrateLegacyContainerIfNeeded() {
+        guard !isDemo else { return }
         let manager = FileManager.default
         let legacy = manager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("NmapMac", isDirectory: true)

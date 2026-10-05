@@ -93,6 +93,13 @@ final class AppModel {
         if policy != storedPolicy { try? policyStore.save(policy) }
         customProfiles = profileStore.load()
         history = historyStore.loadAll()
+        if DemoMode.isActive {
+            // Property observers do not run in init, so L10n is set by hand,
+            // before the demo runs are named.
+            settings.language = .english
+            L10n.language = .english
+            history = DemoMode.history
+        }
         locateNmap()
         AuditLog.shared.record(.appStarted, "version \(installation?.version ?? "nmap not found")")
         ZoomShortcut.install { [weak self] in self?.zoomTextIn() }
