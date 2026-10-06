@@ -6,12 +6,18 @@ set -euo pipefail
 CONFIG="${1:-release}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/build/Dozor.app"
-VERSION="0.1.0"
+VERSION="${VERSION:-0.0.1}"
+
+# ARCHS="arm64 x86_64" builds a universal binary; empty means the host arch.
+ARCH_FLAGS=()
+for arch in ${ARCHS:-}; do
+    ARCH_FLAGS+=(--arch "$arch")
+done
 
 cd "$ROOT"
-swift build -c "$CONFIG" --product Dozor
+swift build -c "$CONFIG" --product Dozor ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}
 
-BIN="$(swift build -c "$CONFIG" --product Dozor --show-bin-path)/Dozor"
+BIN="$(swift build -c "$CONFIG" --product Dozor ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"} --show-bin-path)/Dozor"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"

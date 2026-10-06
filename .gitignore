@@ -6,3 +6,6 @@ build/
 
 # Rendered from vector art by Scripts/make-icon.swift during bundling.
 Resources/AppIcon.icns
+
+# Release archives built by Scripts/release.sh; uploaded to GitHub Releases, not committed.
+release/

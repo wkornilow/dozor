@@ -104,6 +104,8 @@ cd dozor
 open build/Dozor.app
 ```
 
+To build the universal (Apple silicon + Intel) release archive in `release/<version>/`, run `./Scripts/release.sh`. The version defaults to the one in `Scripts/bundle.sh`; override it with `VERSION=x.y.z`.
+
 The bundle is signed ad-hoc so it launches locally. The app isn't sandboxed because a sandboxed process can't launch `/opt/homebrew/bin/nmap`.
 
 > **Build fails with `plugin for module 'SwiftUIMacros' not found`?** Some Command Line Tools releases ship an SDK whose SwiftUI macros they can't expand. Build against an older SDK that's also installed:
@@ -146,7 +148,7 @@ The app opens each screen in light and dark appearance, renders its own window t
 | `Sources/DozorKit` | Core with no UI: target validation, policy, process runner, XML parser, subnet sweeper, storage, export, diff. No dependencies beyond Foundation, so it can be ported. |
 | `Sources/Dozor` | SwiftUI + AppKit app: network overview, scanning, results, history, profiles, settings, audit log. |
 | `Tests/DozorKitTests` | Tests for the core. |
-| `Scripts/` | `bundle.sh` assembles the `.app` without Xcode. `make-icon.swift` draws the icon from vector code. |
+| `Scripts/` | `bundle.sh` assembles the `.app` without Xcode. `release.sh` packs a universal build for a release. `make-icon.swift` draws the icon from vector code. |
 
 It's a plain SwiftPM package with no Xcode project.
 
